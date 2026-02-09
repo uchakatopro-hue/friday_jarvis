@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: 1px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .footer {
+            background-color: #f9f9f9;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid #eeeeee;
+        }
+        .footer img {
+            width: 80px;
+            height: auto;
+            margin-bottom: 10px;
+            border-radius: 50%;
+        }
+        .footer p {
+            font-size: 12px;
+            color: #777777;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Uchakato Pro</h1>
+        </div>
+        <div class="content">
+            {{ message_body | safe }}
+        </div>
+        <div class="footer">
+            <img src="cid:agent_logo" alt="Maya - AI Assistant">
+            <p><strong>Maya</strong></p>
+            <p>Voice AI Assistant | Uchakato Pro</p>
+            <p>&copy; 2026 Uchakato Pro. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
