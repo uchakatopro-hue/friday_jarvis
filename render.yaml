@@ -1,0 +1,67 @@
+services:
+  - type: web
+    name: friday-web
+    env: python
+    plan: standard
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: GEMINI_API_KEY
+        scope: secret
+      - key: LIVEKIT_URL
+        scope: secret
+      - key: LIVEKIT_API_KEY
+        scope: secret
+      - key: LIVEKIT_API_SECRET
+        scope: secret
+      - key: FRIDAY_API_KEY
+        scope: secret
+      - key: GOOGLE_API_KEY
+        scope: secret
+      - key: GOOGLE_CLIENT_ID
+        scope: secret
+      - key: GOOGLE_CLIENT_SECRET
+        scope: secret
+      - key: GOOGLE_REFRESH_TOKEN
+        scope: secret
+      - key: GMAIL_USER
+        scope: secret
+      - key: FROM_NAME
+        value: Maya from Uchakato Pro
+      - key: ALLOWED_ORIGINS
+        value: "*"
+
+  - type: background
+    name: friday-agent
+    env: python
+    plan: standard
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: python agent.py dev
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: GEMINI_API_KEY
+        scope: secret
+      - key: LIVEKIT_URL
+        scope: secret
+      - key: LIVEKIT_API_KEY
+        scope: secret
+      - key: LIVEKIT_API_SECRET
+        scope: secret
+      - key: FRIDAY_API_KEY
+        scope: secret
+      - key: GOOGLE_API_KEY
+        scope: secret
+      - key: GOOGLE_CLIENT_ID
+        scope: secret
+      - key: GOOGLE_CLIENT_SECRET
+        scope: secret
+      - key: GOOGLE_REFRESH_TOKEN
+        scope: secret
+      - key: GMAIL_USER
+        scope: secret
