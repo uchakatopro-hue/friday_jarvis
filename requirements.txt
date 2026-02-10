@@ -9,3 +9,10 @@ langchain_community
 requests
 python-dotenv
 flask
+fastapi
+uvicorn[standard]
+httpx
+aiohttp
+python-multipart
+pydantic-settings
+cryptography
