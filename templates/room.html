@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Friday - Voice Assistant</title>
+    <!-- LiveKit SDK (Core) -->
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client@0.6.0/dist/livekit-client.js"></script>
+    <!-- LiveKit Components -->
     <script src="https://cdn.jsdelivr.net/npm/@livekit/components@0.7.0/dist/livekit-components.js"></script>
     <style>
         body {
@@ -63,6 +66,12 @@
             transform: translateY(-2px);
         }
 
+        .btn:disabled {
+            background: #999;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .btn.danger {
             background: #e53e3e;
         }
@@ -119,13 +128,29 @@
             margin-top: 0;
             color: #667eea;
         }
+
+        .error-message {
+            position: absolute;
+            bottom: 10rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(239,68,68,0.9);
+            padding: 1rem;
+            border-radius: 10px;
+            max-width: 500px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🧠 Friday - Voice Assistant</h1>
-            <div class="status" id="status">Connecting...</div>
+            <div class="status" id="status">Ready</div>
         </div>
 
         <div class="room-container">
@@ -143,6 +168,8 @@
 
             <div id="livekit-room"></div>
 
+            <div class="error-message" id="errorMessage"></div>
+
             <div class="controls">
                 <button class="btn" id="connectBtn" onclick="connectToRoom()">Connect</button>
                 <button class="btn danger" id="disconnectBtn" onclick="disconnectFromRoom()" style="display: none;">Disconnect</button>
@@ -155,17 +182,21 @@
         let room = null;
         let token = null;
 
+        // Get LiveKit client from global scope
+        const LiveKit = window.LivekitClient || window.livekit;
+
         async function getToken() {
             try {
                 const response = await fetch(`/token?roomName=${roomName}&identity=user_${Date.now()}`);
                 if (!response.ok) {
-                    throw new Error('Failed to get token');
+                    throw new Error(`Token request failed: ${response.status}`);
                 }
                 const data = await response.json();
+                console.log('Token received:', data.token ? 'Valid token' : 'Invalid token');
                 return data.token;
             } catch (error) {
                 console.error('Error getting token:', error);
-                updateStatus('Error getting token', 'error');
+                showError('Failed to get token: ' + error.message);
                 throw error;
             }
         }
@@ -178,12 +209,22 @@
             connectBtn.disabled = true;
             connectBtn.textContent = 'Connecting...';
             updateStatus('Connecting...', 'connecting');
+            console.log('Starting connection to room:', roomName);
 
             try {
+                // Get token from server
                 token = await getToken();
+                console.log('Got token, attempting to connect to LiveKit');
 
-                room = new LivekitClient.Room();
+                // Create room instance
+                room = new LiveKit.Room({
+                    audio: true,
+                    video: false,
+                });
+
+                // Set up event listeners
                 room.on('connected', () => {
+                    console.log('Successfully connected to LiveKit room');
                     updateStatus('Connected! Start speaking...', 'connected');
                     connectBtn.style.display = 'none';
                     disconnectBtn.style.display = 'inline-block';
@@ -191,17 +232,30 @@
                 });
 
                 room.on('disconnected', () => {
+                    console.log('Disconnected from room');
                     updateStatus('Disconnected', 'error');
                     connectBtn.style.display = 'inline-block';
                     disconnectBtn.style.display = 'none';
+                    connectBtn.disabled = false;
+                    connectBtn.textContent = 'Connect';
                     instructions.classList.add('show');
                 });
 
-                await room.connect('{{ LIVEKIT_URL }}', token);
-                updateStatus('Connected!', 'connected');
+                room.on('error', (error) => {
+                    console.error('Room error:', error);
+                    showError('Room error: ' + error.message);
+                });
+
+                // Connect to LiveKit server
+                const liveKitUrl = '{{ LIVEKIT_URL }}';
+                console.log('Connecting to:', liveKitUrl);
+                await room.connect(liveKitUrl, token);
+                console.log('Connection successful!');
 
             } catch (error) {
                 console.error('Connection error:', error);
+                const errorMsg = error.message || 'Unknown error';
+                showError('Connection failed: ' + errorMsg);
                 updateStatus('Connection failed', 'error');
                 connectBtn.disabled = false;
                 connectBtn.textContent = 'Connect';
@@ -209,8 +263,14 @@
         }
 
         async function disconnectFromRoom() {
-            if (room) {
-                await room.disconnect();
+            try {
+                if (room) {
+                    await room.disconnect();
+                    console.log('Disconnected from room');
+                }
+            } catch (error) {
+                console.error('Disconnect error:', error);
+                showError('Error disconnecting: ' + error.message);
             }
         }
 
@@ -220,8 +280,28 @@
             status.className = 'status ' + type;
         }
 
-        // Auto-connect on page load (optional)
-        // connectToRoom();
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+            console.error('Error:', message);
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                errorDiv.classList.remove('show');
+            }, 5000);
+        }
+
+        // Check if LiveKit is available
+        window.addEventListener('load', () => {
+            if (!LiveKit) {
+                console.error('LiveKit SDK not loaded!');
+                showError('LiveKit SDK failed to load. Please refresh the page.');
+            } else {
+                console.log('LiveKit SDK loaded successfully');
+                updateStatus('Ready', 'connected');
+            }
+        });
     </script>
 </body>
 </html>
