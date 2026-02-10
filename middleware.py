@@ -9,7 +9,8 @@ from typing import Optional
 from datetime import datetime, timedelta
 import secrets
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthCredentials
+from fastapi.security import HTTPBearer
+from fastapi.security.http import HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 import hmac
 import hashlib
@@ -51,7 +52,7 @@ def configure_cors(app: FastAPI):
     logger.info(f"CORS configured for origins: {ALLOWED_ORIGINS}")
 
 
-async def verify_agent_token(credentials: HTTPAuthCredentials = Depends(security)) -> str:
+async def verify_agent_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
     """
     Verify agent authentication token.
     
@@ -78,7 +79,7 @@ async def verify_agent_token(credentials: HTTPAuthCredentials = Depends(security
 
 
 async def verify_optional_agent_token(
-    credentials: Optional[HTTPAuthCredentials] = Depends(security)
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> Optional[str]:
     """
     Verify agent token, but allow requests without it for public endpoints.
