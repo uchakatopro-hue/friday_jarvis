@@ -1,5 +1,17 @@
 [project]
-  subdomain = "friday-uk2toy5r"
+subdomain = "friday-uk2toy5r"
 
 [agent]
-  id = "CA_hBENBdYz43c6"
+id = "CA_hBENBdYz43c6"
+name = "friday-jarvis"
+
+[env]
+# 1. The URL of your FastAPI app on Render
+EXTERNAL_API_URL = "https://friday-j.......onrender.com"
+
+# 2. The secret token used to protect your FastAPI endpoints
+AGENT_AUTH_TOKEN = "s9K4v8Qx7m..............."
+
+# 3. If you're using OpenAI/Deepgram/etc directly, add them here
+# (Note: For security, it's better to use 'lk agent update-secrets' for these)
+GOOGLE_API_KEY = "AIzaS.............."

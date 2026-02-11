@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Friday - Voice Assistant</title>
-    <!-- LiveKit SDK (Core) -->
-    <script src="https://cdn.jsdelivr.net/npm/livekit-client@0.6.0/dist/livekit-client.js"></script>
-    <!-- LiveKit Components -->
-    <script src="https://cdn.jsdelivr.net/npm/@livekit/components@0.7.0/dist/livekit-components.js"></script>
+    <!-- LiveKit SDK (Core) - Multiple CDN sources for reliability -->
+    <script src="https://unpkg.com/livekit-client@latest/dist/livekit-client.umd.js"></script>
     <style>
         body {
             margin: 0;
@@ -182,17 +180,32 @@
         let room = null;
         let token = null;
 
-        // Get LiveKit client from global scope
-        const LiveKit = window.LivekitClient || window.livekit;
+        // Get base URL (works for both local and remote)
+        function getBaseURL() {
+            return window.location.origin;
+        }
+
+        // Get LiveKit client - try different possible locations
+        function getLiveKitClient() {
+            // Check various possible locations where LiveKit might be
+            if (window.LiveKit) return window.LiveKit;
+            if (window.livekit) return window.livekit;
+            if (window.LivekitClient) return window.LivekitClient;
+            return null;
+        }
 
         async function getToken() {
             try {
-                const response = await fetch(`/token?roomName=${roomName}&identity=user_${Date.now()}`);
+                const baseURL = getBaseURL();
+                const tokenUrl = `${baseURL}/token?roomName=${roomName}&identity=user_${Date.now()}`;
+                console.log('Requesting token from:', tokenUrl);
+                
+                const response = await fetch(tokenUrl);
                 if (!response.ok) {
-                    throw new Error(`Token request failed: ${response.status}`);
+                    throw new Error(`Token request failed with status ${response.status}`);
                 }
                 const data = await response.json();
-                console.log('Token received:', data.token ? 'Valid token' : 'Invalid token');
+                console.log('Token received:', data.token ? 'Valid JWT token' : 'Invalid token');
                 return data.token;
             } catch (error) {
                 console.error('Error getting token:', error);
@@ -212,6 +225,13 @@
             console.log('Starting connection to room:', roomName);
 
             try {
+                // Verify LiveKit SDK is loaded
+                const LiveKit = getLiveKitClient();
+                if (!LiveKit) {
+                    throw new Error('LiveKit SDK not loaded. Please refresh the page and wait for scripts to load.');
+                }
+                console.log('LiveKit SDK verified');
+
                 // Get token from server
                 token = await getToken();
                 console.log('Got token, attempting to connect to LiveKit');
@@ -221,6 +241,7 @@
                     audio: true,
                     video: false,
                 });
+                console.log('Room object created');
 
                 // Set up event listeners
                 room.on('connected', () => {
@@ -247,8 +268,8 @@
                 });
 
                 // Connect to LiveKit server
-                const liveKitUrl = '{{ LIVEKIT_URL }}';
-                console.log('Connecting to:', liveKitUrl);
+                const liveKitUrl = '{{ livekit_url }}';
+                console.log('Connecting to LiveKit URL:', liveKitUrl);
                 await room.connect(liveKitUrl, token);
                 console.log('Connection successful!');
 
@@ -292,16 +313,28 @@
             }, 5000);
         }
 
-        // Check if LiveKit is available
+        // Check if LiveKit is available on page load
         window.addEventListener('load', () => {
-            if (!LiveKit) {
-                console.error('LiveKit SDK not loaded!');
-                showError('LiveKit SDK failed to load. Please refresh the page.');
-            } else {
-                console.log('LiveKit SDK loaded successfully');
-                updateStatus('Ready', 'connected');
-            }
+            console.log('Page loaded, checking for LiveKit SDK');
+            
+            // Wait a moment for scripts to fully load
+            setTimeout(() => {
+                const LiveKit = getLiveKitClient();
+                if (!LiveKit) {
+                    console.error('LiveKit SDK not available!');
+                    console.log('Available globals:', Object.keys(window).filter(k => k.toLowerCase().includes('livekit')));
+                    showError('LiveKit SDK failed to load. Trying to continue...');
+                    document.getElementById('connectBtn').disabled = true;
+                } else {
+                    console.log('✓ LiveKit SDK loaded successfully');
+                    updateStatus('Ready', 'connected');
+                }
+            }, 500);
         });
+
+        // Log current base URL for debugging
+        console.log('Page loaded at:', window.location.origin);
+        console.log('Room name:', roomName);
     </script>
 </body>
 </html>

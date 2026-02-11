@@ -2,6 +2,8 @@ import os
 import uuid
 import time
 import logging
+import subprocess
+import sys
 from typing import Optional, Any, Dict
 from datetime import datetime
 from fastapi import FastAPI, Request, HTTPException, Depends, BackgroundTasks
@@ -37,6 +39,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Global variable to track agent process
+agent_process = None
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Friday - AI Voice Assistant",
@@ -52,9 +57,19 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # LiveKit configuration
-LIVEKIT_URL = os.getenv("LIVEKIT_URL", "wss://friday-uk2toy5r.livekit.cloud")
-LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "")
-LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
+LIVEKIT_URL = os.getenv("LIVEKIT_URL")
+LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
+LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
+
+# External API (FastAPI bridge) URL used by agents
+EXTERNAL_API_URL = os.getenv("EXTERNAL_API_URL")
+
+# Validate LiveKit credentials
+if not LIVEKIT_URL or not LIVEKIT_API_KEY or not LIVEKIT_API_SECRET:
+    logger.error("Missing LiveKit credentials in .env file!")
+    logger.error(f"  LIVEKIT_URL: {'✓' if LIVEKIT_URL else '✗'}")
+    logger.error(f"  LIVEKIT_API_KEY: {'✓' if LIVEKIT_API_KEY else '✗'}")
+    logger.error(f"  LIVEKIT_API_SECRET: {'✓' if LIVEKIT_API_SECRET else '✗'}")
 
 # Agent configuration
 AGENT_SESSION_TIMEOUT = int(os.getenv("AGENT_SESSION_TIMEOUT", "300"))  # 5 minutes default
@@ -99,9 +114,29 @@ class AgentInteractionLog(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     """Initialize resources on startup."""
+    global agent_process
+    
     logger.info("Starting Friday - AI Voice Assistant")
     logger.info(f" - LiveKit URL: {LIVEKIT_URL}")
+    logger.info(f" - External API URL: {EXTERNAL_API_URL if EXTERNAL_API_URL else 'Not set'}")
     logger.info(f" - Agent Token Auth: {'Enabled' if AGENT_AUTH_TOKEN else 'Disabled'}")
+    
+    # Start agent in background
+    try:
+        logger.info("Starting LiveKit agent process...")
+        # Get the Python executable from the current environment
+        python_exe = sys.executable
+        agent_process = subprocess.Popen(
+            [python_exe, "agent.py", "console"],
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        logger.info(f"Agent process started with PID: {agent_process.pid}")
+    except Exception as e:
+        logger.error(f"Failed to start agent process: {e}")
+        logger.warning("Continuing without agent - web service will still work")
     
     # Initialize API client
     api_client = await get_api_client()
@@ -111,7 +146,27 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup resources on shutdown."""
+    global agent_process
+    
     logger.info("Shutting down Friday - AI Voice Assistant")
+    
+    # Terminate agent process if running
+    if agent_process:
+        try:
+            logger.info(f"Terminating agent process with PID: {agent_process.pid}")
+            agent_process.terminate()
+            # Wait for graceful shutdown, then kill if needed
+            try:
+                agent_process.wait(timeout=5)
+                logger.info("Agent process terminated gracefully")
+            except subprocess.TimeoutExpired:
+                logger.warning("Agent process did not terminate gracefully, killing...")
+                agent_process.kill()
+                agent_process.wait()
+                logger.info("Agent process killed")
+        except Exception as e:
+            logger.error(f"Error terminating agent process: {e}")
+    
     await cleanup_api_client()
     logger.info("API client resources cleaned up")
 
@@ -210,7 +265,10 @@ async def health():
         "status": "healthy",
         "service": "Friday AI Assistant",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "2.0.0"
+        "version": "2.0.0",
+        "livekit_url": LIVEKIT_URL,
+        "external_api_url": EXTERNAL_API_URL,
+        "agent_running": bool(agent_process)
     }
 
 
@@ -228,6 +286,7 @@ async def get_config():
             "video_support": True,
             "external_api_integration": True
         },
+        "external_api_url": EXTERNAL_API_URL,
         "session_timeout": AGENT_SESSION_TIMEOUT
     }
 
