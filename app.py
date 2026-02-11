@@ -17,7 +17,7 @@ import uvicorn
 from middleware import configure_cors, verify_agent_token, AGENT_AUTH_TOKEN
 from api_client import get_api_client, cleanup_api_client
 
-from livekit.api import AccessToken, VideoGrants
+from livekit.api import AccessToken, VideoGrants, LiveKitApi
 
 load_dotenv()
 
@@ -229,6 +229,41 @@ async def get_token(roomName: str = None, identity: str = None):
     except Exception as e:
         logger.error(f"Error generating token: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate token: {str(e)}")
+
+
+@app.get("/debug-livekit")
+async def debug_livekit():
+    """Debug endpoint to test LiveKit credentials"""
+    try:
+        if not LIVEKIT_URL or not LIVEKIT_API_KEY or not LIVEKIT_API_SECRET:
+            return {
+                "status": "error",
+                "message": "Missing environment variables",
+                "env_vars": {
+                    "LIVEKIT_URL": bool(LIVEKIT_URL),
+                    "LIVEKIT_API_KEY": bool(LIVEKIT_API_KEY),
+                    "LIVEKIT_API_SECRET": bool(LIVEKIT_API_SECRET)
+                }
+            }
+
+        api = LiveKitApi(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+        rooms = await api.room.list_rooms()
+        await api.aclose()
+        
+        return {
+            "status": "success",
+            "message": "Connected to LiveKit successfully",
+            "rooms_count": len(rooms.rooms),
+            "url": LIVEKIT_URL
+        }
+    except Exception as e:
+        logger.error(f"LiveKit debug error: {e}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "type": type(e).__name__,
+            "url": LIVEKIT_URL
+        }
 
 
 @app.get("/health")
