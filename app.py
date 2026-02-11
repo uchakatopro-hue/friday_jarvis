@@ -17,7 +17,7 @@ import uvicorn
 from middleware import configure_cors, verify_agent_token, AGENT_AUTH_TOKEN
 from api_client import get_api_client, cleanup_api_client
 
-from livekit.api import AccessToken, VideoGrants, LiveKitApi
+from livekit.api import AccessToken, VideoGrants, LiveKitAPI
 
 load_dotenv()
 
@@ -246,7 +246,7 @@ async def debug_livekit():
                 }
             }
 
-        api = LiveKitApi(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+        api = LiveKitAPI(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
         rooms = await api.room.list_rooms()
         await api.aclose()
         
