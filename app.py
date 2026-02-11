@@ -17,18 +17,7 @@ import uvicorn
 from middleware import configure_cors, verify_agent_token, AGENT_AUTH_TOKEN
 from api_client import get_api_client, cleanup_api_client
 
-try:
-    from livekit.api import AccessToken, VideoGrants
-except ImportError:
-    try:
-        from livekit import AccessToken, VideoGrants
-    except ImportError:
-        try:
-            from livekit.api import AccessToken
-            from livekit.api import VideoGrants
-        except ImportError:
-            AccessToken = None
-            VideoGrants = None
+from livekit.api import AccessToken, VideoGrants
 
 load_dotenv()
 
@@ -216,43 +205,27 @@ async def get_token(roomName: str = None, identity: str = None):
         if not identity:
             identity = f'user-{uuid.uuid4().hex[:8]}'
 
-        # Try to import and use LiveKit token generation
-        if AccessToken is not None and VideoGrants is not None:
-            # Use proper LiveKit API
-            token = AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
-            token.identity = identity
-            token.name = identity
+        # Use proper LiveKit API
+        token = AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+        token.identity = identity
+        token.name = identity
 
-            # Grant permissions
-            grant = VideoGrants()
-            grant.room = room_name
-            grant.room_join = True
-            grant.can_publish = True
-            grant.can_subscribe = True
-            grant.can_publish_data = True
+        # Grant permissions
+        grant = VideoGrants()
+        grant.room = room_name
+        grant.room_join = True
+        grant.can_publish = True
+        grant.can_subscribe = True
+        grant.can_publish_data = True
 
-            token.video_grants = grant
+        token.video_grants = grant
 
-            jwt_token = token.to_jwt()
-            return {"token": jwt_token}
-        else:
-            # Fallback: return a mock token for testing
-            import base64
-            import json
+        jwt_token = token.to_jwt()
+        return {"token": jwt_token}
 
-            header = base64.b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).decode()
-            payload = base64.b64encode(json.dumps({
-                "identity": identity,
-                "name": identity,
-                "room": room_name,
-                "exp": int(time.time()) + 3600
-            }).encode()).decode()
-
-            signature = base64.b64encode(f"mock_signature_{room_name}_{identity}".encode()).decode()
-            mock_token = f"{header}.{payload}.{signature}"
-            logger.warning("Using mock token - LiveKit imports failed")
-            return {"token": mock_token, "warning": "Mock token - LiveKit integration incomplete"}
-
+    except ImportError:
+        logger.error("LiveKit SDK not found. Please install livekit-api and livekit-server-sdk.")
+        raise HTTPException(status_code=500, detail="LiveKit SDK configuration error")
     except Exception as e:
         logger.error(f"Error generating token: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate token: {str(e)}")
