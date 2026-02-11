@@ -205,20 +205,18 @@ async def get_token(roomName: str = None, identity: str = None):
         if not identity:
             identity = f'user-{uuid.uuid4().hex[:8]}'
 
-        # Use proper LiveKit API
-        token = AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+        # Grant permissions
+        grant = VideoGrants(
+            room_join=True,
+            room=room_name,
+            can_publish=True,
+            can_subscribe=True,
+            can_publish_data=True
+        )
+
+        token = AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, grant=grant)
         token.identity = identity
         token.name = identity
-
-        # Grant permissions
-        grant = VideoGrants()
-        grant.room = room_name
-        grant.room_join = True
-        grant.can_publish = True
-        grant.can_subscribe = True
-        grant.can_publish_data = True
-
-        token.video_grants = grant
 
         jwt_token = token.to_jwt()
         return {"token": jwt_token}
